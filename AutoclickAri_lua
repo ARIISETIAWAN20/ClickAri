@@ -1,0 +1,438 @@
+-- Auto Clicker untuk Roblox (Gym League) - Android Version
+-- Fitur:
+-- 1. UI dengan tema hitam glossy
+-- 2. Tombol On/Off yang responsif
+-- 3. Slider kecepatan klik yang berfungsi (0-100ms)
+-- 4. Default speed 0.2ms
+-- 5. Status aktif/tidak aktif
+-- 6. Tombol minimize dan close
+-- 7. Auto klik di tengah layar (untuk Android)
+
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local TweenService = game:GetService("TweenService")
+local GuiService = game:GetService("GuiService")
+
+-- Konfigurasi
+local isClicking = false
+local clickSpeed = 0.2 -- default 0.2ms
+local clickThread = nil
+local isMinimized = false
+
+-- Warna UI
+local colorPrimary = Color3.fromRGB(20, 20, 25)       -- Hitam gelap
+local colorSecondary = Color3.fromRGB(40, 40, 50)     -- Hitam sedang
+local colorAccent = Color3.fromRGB(0, 150, 255)       -- Biru untuk aksen
+local colorText = Color3.fromRGB(255, 255, 255)       -- Putih
+local colorGloss = Color3.fromRGB(255, 255, 255, 0.1) -- Efek glossy
+
+-- Membuat UI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AutoClickerUI"
+screenGui.Parent = game:GetService("CoreGui")
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 280, 0, 200)
+mainFrame.Position = UDim2.new(0.5, -140, 0.5, -100)
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+mainFrame.BackgroundColor3 = colorPrimary
+mainFrame.BorderSizePixel = 0
+mainFrame.ClipsDescendants = true
+mainFrame.Parent = screenGui
+
+-- Efek glossy
+local gloss = Instance.new("Frame")
+gloss.Name = "GlossEffect"
+gloss.Size = UDim2.new(1, 0, 0.5, 0)
+gloss.Position = UDim2.new(0, 0, 0, 0)
+gloss.BackgroundColor3 = colorGloss
+gloss.BorderSizePixel = 0
+gloss.ZIndex = 2
+gloss.Parent = mainFrame
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = mainFrame
+
+local titleBar = Instance.new("Frame")
+titleBar.Name = "TitleBar"
+titleBar.Size = UDim2.new(1, 0, 0, 30)
+titleBar.BackgroundColor3 = colorSecondary
+titleBar.BorderSizePixel = 0
+titleBar.ZIndex = 3
+titleBar.Parent = mainFrame
+
+local title = Instance.new("TextLabel")
+title.Name = "Title"
+title.Size = UDim2.new(1, -60, 1, 0)
+title.Position = UDim2.new(0, 10, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "Gym League Auto Clicker"
+title.TextColor3 = colorText
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Font = Enum.Font.GothamBold
+title.TextSize = 14
+title.ZIndex = 3
+title.Parent = titleBar
+
+local minimizeButton = Instance.new("TextButton")
+minimizeButton.Name = "MinimizeButton"
+minimizeButton.Size = UDim2.new(0, 30, 1, 0)
+minimizeButton.Position = UDim2.new(1, -60, 0, 0)
+minimizeButton.BackgroundTransparency = 1
+minimizeButton.Text = "_"
+minimizeButton.TextColor3 = colorText
+minimizeButton.Font = Enum.Font.GothamBold
+minimizeButton.TextSize = 16
+minimizeButton.ZIndex = 3
+minimizeButton.Parent = titleBar
+
+local closeButton = Instance.new("TextButton")
+closeButton.Name = "CloseButton"
+closeButton.Size = UDim2.new(0, 30, 1, 0)
+closeButton.Position = UDim2.new(1, -30, 0, 0)
+closeButton.BackgroundTransparency = 1
+closeButton.Text = "×"
+closeButton.TextColor3 = colorText
+closeButton.Font = Enum.Font.GothamBold
+closeButton.TextSize = 18
+closeButton.ZIndex = 3
+closeButton.Parent = titleBar
+
+local contentFrame = Instance.new("Frame")
+contentFrame.Name = "ContentFrame"
+contentFrame.Size = UDim2.new(1, -20, 1, -50)
+contentFrame.Position = UDim2.new(0, 10, 0, 40)
+contentFrame.BackgroundTransparency = 1
+contentFrame.ZIndex = 2
+contentFrame.Parent = mainFrame
+
+-- Toggle Button
+local toggleButton = Instance.new("TextButton")
+toggleButton.Name = "ToggleButton"
+toggleButton.Size = UDim2.new(1, 0, 0, 40)
+toggleButton.Position = UDim2.new(0, 0, 0, 0)
+toggleButton.BackgroundColor3 = colorSecondary
+toggleButton.Text = "START"
+toggleButton.TextColor3 = colorText
+toggleButton.Font = Enum.Font.GothamBold
+toggleButton.TextSize = 14
+toggleButton.ZIndex = 2
+toggleButton.Parent = contentFrame
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 8)
+toggleCorner.Parent = toggleButton
+
+-- Efek glossy untuk tombol
+local buttonGloss = Instance.new("Frame")
+buttonGloss.Name = "ButtonGloss"
+buttonGloss.Size = UDim2.new(1, 0, 0.5, 0)
+buttonGloss.Position = UDim2.new(0, 0, 0, 0)
+buttonGloss.BackgroundColor3 = colorGloss
+buttonGloss.BorderSizePixel = 0
+buttonGloss.ZIndex = 3
+buttonGloss.Parent = toggleButton
+
+-- Speed Control
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Name = "SpeedLabel"
+speedLabel.Size = UDim2.new(1, 0, 0, 20)
+speedLabel.Position = UDim2.new(0, 0, 0, 50)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "Click Speed: " .. clickSpeed .. "ms"
+speedLabel.TextColor3 = colorText
+speedLabel.Font = Enum.Font.Gotham
+speedLabel.TextSize = 12
+speedLabel.TextXAlignment = Enum.TextXAlignment.Left
+speedLabel.ZIndex = 2
+speedLabel.Parent = contentFrame
+
+local speedSlider = Instance.new("Frame")
+speedSlider.Name = "SpeedSlider"
+speedSlider.Size = UDim2.new(1, 0, 0, 10)
+speedSlider.Position = UDim2.new(0, 0, 0, 75)
+speedSlider.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+speedSlider.ZIndex = 2
+speedSlider.Parent = contentFrame
+
+local sliderCorner = Instance.new("UICorner")
+sliderCorner.CornerRadius = UDim.new(1, 0)
+sliderCorner.Parent = speedSlider
+
+local sliderFill = Instance.new("Frame")
+sliderFill.Name = "SliderFill"
+sliderFill.Size = UDim2.new((clickSpeed / 100), 0, 1, 0)
+sliderFill.BackgroundColor3 = colorAccent
+sliderFill.ZIndex = 2
+sliderFill.Parent = speedSlider
+
+local fillCorner = Instance.new("UICorner")
+fillCorner.CornerRadius = UDim.new(1, 0)
+fillCorner.Parent = sliderFill
+
+local sliderButton = Instance.new("TextButton")
+sliderButton.Name = "SliderButton"
+sliderButton.Size = UDim2.new(0, 20, 0, 20)
+sliderButton.Position = UDim2.new((clickSpeed / 100), -10, 0.5, -10)
+sliderButton.BackgroundColor3 = colorText
+sliderButton.Text = ""
+sliderButton.ZIndex = 3
+sliderButton.Parent = speedSlider
+
+local buttonCorner = Instance.new("UICorner")
+buttonCorner.CornerRadius = UDim.new(1, 0)
+buttonCorner.Parent = sliderButton
+
+-- Status
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Name = "StatusLabel"
+statusLabel.Size = UDim2.new(1, 0, 0, 20)
+statusLabel.Position = UDim2.new(0, 0, 0, 95)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "Status: OFF"
+statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+statusLabel.Font = Enum.Font.Gotham
+statusLabel.TextSize = 12
+statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+statusLabel.ZIndex = 2
+statusLabel.Parent = contentFrame
+
+-- Minimized View
+local minimizedFrame = Instance.new("Frame")
+minimizedFrame.Name = "MinimizedFrame"
+minimizedFrame.Size = UDim2.new(0, 150, 0, 30)
+minimizedFrame.Position = mainFrame.Position
+minimizedFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+minimizedFrame.BackgroundColor3 = colorPrimary
+minimizedFrame.BorderSizePixel = 0
+minimizedFrame.Visible = false
+minimizedFrame.ZIndex = 3
+minimizedFrame.Parent = screenGui
+
+local minimizedCorner = Instance.new("UICorner")
+minimizedCorner.CornerRadius = UDim.new(0, 10)
+minimizedCorner.Parent = minimizedFrame
+
+-- Efek glossy untuk minimized frame
+local minimizedGloss = Instance.new("Frame")
+minimizedGloss.Name = "MinimizedGloss"
+minimizedGloss.Size = UDim2.new(1, 0, 0.5, 0)
+minimizedGloss.Position = UDim2.new(0, 0, 0, 0)
+minimizedGloss.BackgroundColor3 = colorGloss
+minimizedGloss.BorderSizePixel = 0
+minimizedGloss.ZIndex = 4
+minimizedGloss.Parent = minimizedFrame
+
+local minimizedTitle = Instance.new("TextLabel")
+minimizedTitle.Name = "MinimizedTitle"
+minimizedTitle.Size = UDim2.new(1, -60, 1, 0)
+minimizedTitle.Position = UDim2.new(0, 10, 0, 0)
+minimizedTitle.BackgroundTransparency = 1
+minimizedTitle.Text = "Auto Clicker"
+minimizedTitle.TextColor3 = colorText
+minimizedTitle.TextXAlignment = Enum.TextXAlignment.Left
+minimizedTitle.Font = Enum.Font.GothamBold
+minimizedTitle.TextSize = 12
+minimizedTitle.ZIndex = 4
+minimizedTitle.Parent = minimizedFrame
+
+local minimizedStatus = Instance.new("TextLabel")
+minimizedStatus.Name = "MinimizedStatus"
+minimizedStatus.Size = UDim2.new(0, 20, 0, 20)
+minimizedStatus.Position = UDim2.new(1, -50, 0.5, -10)
+minimizedStatus.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+minimizedStatus.Text = ""
+minimizedStatus.TextColor3 = colorText
+minimizedStatus.Font = Enum.Font.GothamBold
+minimizedStatus.TextSize = 10
+minimizedStatus.ZIndex = 4
+minimizedStatus.Parent = minimizedFrame
+
+local minimizedCornerStatus = Instance.new("UICorner")
+minimizedCornerStatus.CornerRadius = UDim.new(1, 0)
+minimizedCornerStatus.Parent = minimizedStatus
+
+local restoreButton = Instance.new("TextButton")
+restoreButton.Name = "RestoreButton"
+restoreButton.Size = UDim2.new(0, 30, 1, 0)
+restoreButton.Position = UDim2.new(1, -30, 0, 0)
+restoreButton.BackgroundTransparency = 1
+restoreButton.Text = "□"
+restoreButton.TextColor3 = colorText
+restoreButton.Font = Enum.Font.GothamBold
+restoreButton.TextSize = 14
+restoreButton.ZIndex = 4
+restoreButton.Parent = minimizedFrame
+
+-- Fungsi Auto Clicker untuk Android (klik di tengah layar)
+local function autoClick()
+    -- Dapatkan ukuran layar
+    local viewportSize = workspace.CurrentCamera.ViewportSize
+    local centerX = viewportSize.X / 2
+    local centerY = viewportSize.Y / 2
+    
+    while isClicking and RunService.Heartbeat:Wait() do
+        -- Klik di tengah layar
+        VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, true, game, 0)
+        VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, false, game, 0)
+        task.wait(clickSpeed / 1000) -- Convert ms to seconds
+    end
+end
+
+-- Toggle Auto Clicker
+local function toggleAutoClicker()
+    isClicking = not isClicking
+    
+    if isClicking then
+        toggleButton.Text = "STOP"
+        toggleButton.BackgroundColor3 = colorAccent
+        statusLabel.Text = "Status: ON"
+        statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+        minimizedStatus.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+        clickThread = task.spawn(autoClick)
+    else
+        toggleButton.Text = "START"
+        toggleButton.BackgroundColor3 = colorSecondary
+        statusLabel.Text = "Status: OFF"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        minimizedStatus.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+        if clickThread then
+            task.cancel(clickThread)
+            clickThread = nil
+        end
+    end
+end
+
+-- Update Speed
+local function updateSpeed(newSpeed)
+    clickSpeed = math.floor(newSpeed * 10) / 10 -- Round to 1 decimal place
+    speedLabel.Text = "Click Speed: " .. string.format("%.1f", clickSpeed) .. "ms"
+    
+    -- Update slider UI
+    local fillWidth = math.clamp(clickSpeed / 100, 0, 1)
+    sliderFill.Size = UDim2.new(fillWidth, 0, 1, 0)
+    sliderButton.Position = UDim2.new(fillWidth, -10, 0.5, -10)
+end
+
+-- Toggle minimize
+local function toggleMinimize()
+    isMinimized = not isMinimized
+    mainFrame.Visible = not isMinimized
+    minimizedFrame.Visible = isMinimized
+    
+    if isMinimized then
+        minimizedFrame.Position = mainFrame.Position
+    else
+        mainFrame.Position = minimizedFrame.Position
+    end
+end
+
+-- Event Handlers
+toggleButton.MouseButton1Click:Connect(toggleAutoClicker)
+
+local isDraggingSlider = false
+sliderButton.MouseButton1Down:Connect(function()
+    isDraggingSlider = true
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        isDraggingSlider = false
+    end
+end)
+
+local function handleSliderInput(input)
+    if isDraggingSlider or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        local sliderAbsolutePosition = speedSlider.AbsolutePosition.X
+        local sliderAbsoluteSize = speedSlider.AbsoluteSize.X
+        local mouseX = input.Position.X
+        
+        local relativeX = math.clamp(mouseX - sliderAbsolutePosition, 0, sliderAbsoluteSize)
+        local percentage = relativeX / sliderAbsoluteSize
+        local newSpeed = percentage * 100
+        
+        updateSpeed(math.clamp(newSpeed, 0.1, 100)) -- Minimum 0.1ms
+    end
+end
+
+sliderButton.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        handleSliderInput(input)
+    end
+end)
+
+speedSlider.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        handleSliderInput(input)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if isDraggingSlider and input.UserInputType == Enum.UserInputType.MouseMovement then
+        handleSliderInput(input)
+    end
+end)
+
+closeButton.MouseButton1Click:Connect(function()
+    if isClicking then
+        toggleAutoClicker()
+    end
+    screenGui:Destroy()
+end)
+
+minimizeButton.MouseButton1Click:Connect(toggleMinimize)
+restoreButton.MouseButton1Click:Connect(toggleMinimize)
+
+-- Make UI draggable (improved version)
+local dragging
+local dragInput
+local dragStart
+local startPos
+
+local function update(input)
+    local delta = input.Position - dragStart
+    local newPosition = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    
+    if isMinimized then
+        minimizedFrame.Position = newPosition
+    else
+        mainFrame.Position = newPosition
+    end
+end
+
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+minimizedFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = minimizedFrame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        update(input)
+    end
+end)
