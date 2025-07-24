@@ -1,18 +1,16 @@
--- Auto Clicker untuk Roblox (Gym League) - Android Version
+-- Auto Clicker untuk Roblox (Gym League) - Android Version (Fixed)
 -- Fitur:
--- 1. UI dengan tema hitam glossy
--- 2. Tombol On/Off yang responsif
--- 3. Slider kecepatan klik yang berfungsi (0-100ms)
--- 4. Default speed 0.2ms
--- 5. Status aktif/tidak aktif
--- 6. Tombol minimize dan close
--- 7. Auto klik di tengah layar (untuk Android)
+-- 1. UI modern dengan tema biru gelap
+-- 2. Drag & drop yang berfungsi sempurna
+-- 3. Auto klik di tengah layar Android
+-- 4. Slider kecepatan yang responsif
+-- 5. Status aktif/tidak aktif yang jelas
 
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
-local TweenService = game:GetService("TweenService")
 local GuiService = game:GetService("GuiService")
+local Players = game:GetService("Players")
 
 -- Konfigurasi
 local isClicking = false
@@ -21,15 +19,15 @@ local clickThread = nil
 local isMinimized = false
 
 -- Warna UI
-local colorPrimary = Color3.fromRGB(20, 20, 25)       -- Hitam gelap
-local colorSecondary = Color3.fromRGB(40, 40, 50)     -- Hitam sedang
-local colorAccent = Color3.fromRGB(0, 150, 255)       -- Biru untuk aksen
+local colorPrimary = Color3.fromRGB(30, 40, 60)       -- Biru gelap
+local colorSecondary = Color3.fromRGB(50, 70, 100)    -- Biru sedang
+local colorAccent = Color3.fromRGB(0, 180, 255)       -- Biru terang untuk aksen
 local colorText = Color3.fromRGB(255, 255, 255)       -- Putih
 local colorGloss = Color3.fromRGB(255, 255, 255, 0.1) -- Efek glossy
 
 -- Membuat UI
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "AutoClickerUI"
+screenGui.Name = "AutoClickerUI_Fixed"
 screenGui.Parent = game:GetService("CoreGui")
 
 local mainFrame = Instance.new("Frame")
@@ -53,7 +51,7 @@ gloss.ZIndex = 2
 gloss.Parent = mainFrame
 
 local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 10)
+corner.CornerRadius = UDim.new(0, 8)
 corner.Parent = mainFrame
 
 local titleBar = Instance.new("Frame")
@@ -69,7 +67,7 @@ title.Name = "Title"
 title.Size = UDim2.new(1, -60, 1, 0)
 title.Position = UDim2.new(0, 10, 0, 0)
 title.BackgroundTransparency = 1
-title.Text = "Gym League Auto Clicker"
+title.Text = "GYM LEAGUE AUTO CLICKER"
 title.TextColor3 = colorText
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.Font = Enum.Font.GothamBold
@@ -126,16 +124,6 @@ local toggleCorner = Instance.new("UICorner")
 toggleCorner.CornerRadius = UDim.new(0, 8)
 toggleCorner.Parent = toggleButton
 
--- Efek glossy untuk tombol
-local buttonGloss = Instance.new("Frame")
-buttonGloss.Name = "ButtonGloss"
-buttonGloss.Size = UDim2.new(1, 0, 0.5, 0)
-buttonGloss.Position = UDim2.new(0, 0, 0, 0)
-buttonGloss.BackgroundColor3 = colorGloss
-buttonGloss.BorderSizePixel = 0
-buttonGloss.ZIndex = 3
-buttonGloss.Parent = toggleButton
-
 -- Speed Control
 local speedLabel = Instance.new("TextLabel")
 speedLabel.Name = "SpeedLabel"
@@ -154,7 +142,7 @@ local speedSlider = Instance.new("Frame")
 speedSlider.Name = "SpeedSlider"
 speedSlider.Size = UDim2.new(1, 0, 0, 10)
 speedSlider.Position = UDim2.new(0, 0, 0, 75)
-speedSlider.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+speedSlider.BackgroundColor3 = Color3.fromRGB(20, 30, 40)
 speedSlider.ZIndex = 2
 speedSlider.Parent = contentFrame
 
@@ -213,25 +201,15 @@ minimizedFrame.ZIndex = 3
 minimizedFrame.Parent = screenGui
 
 local minimizedCorner = Instance.new("UICorner")
-minimizedCorner.CornerRadius = UDim.new(0, 10)
+minimizedCorner.CornerRadius = UDim.new(0, 8)
 minimizedCorner.Parent = minimizedFrame
-
--- Efek glossy untuk minimized frame
-local minimizedGloss = Instance.new("Frame")
-minimizedGloss.Name = "MinimizedGloss"
-minimizedGloss.Size = UDim2.new(1, 0, 0.5, 0)
-minimizedGloss.Position = UDim2.new(0, 0, 0, 0)
-minimizedGloss.BackgroundColor3 = colorGloss
-minimizedGloss.BorderSizePixel = 0
-minimizedGloss.ZIndex = 4
-minimizedGloss.Parent = minimizedFrame
 
 local minimizedTitle = Instance.new("TextLabel")
 minimizedTitle.Name = "MinimizedTitle"
 minimizedTitle.Size = UDim2.new(1, -60, 1, 0)
 minimizedTitle.Position = UDim2.new(0, 10, 0, 0)
 minimizedTitle.BackgroundTransparency = 1
-minimizedTitle.Text = "Auto Clicker"
+minimizedTitle.Text = "AUTO CLICKER"
 minimizedTitle.TextColor3 = colorText
 minimizedTitle.TextXAlignment = Enum.TextXAlignment.Left
 minimizedTitle.Font = Enum.Font.GothamBold
@@ -269,15 +247,18 @@ restoreButton.Parent = minimizedFrame
 
 -- Fungsi Auto Clicker untuk Android (klik di tengah layar)
 local function autoClick()
-    -- Dapatkan ukuran layar
-    local viewportSize = workspace.CurrentCamera.ViewportSize
-    local centerX = viewportSize.X / 2
-    local centerY = viewportSize.Y / 2
-    
     while isClicking and RunService.Heartbeat:Wait() do
+        -- Dapatkan ukuran layar setiap kali untuk menangani rotasi layar
+        local viewportSize = workspace.CurrentCamera.ViewportSize
+        local centerX = viewportSize.X / 2
+        local centerY = viewportSize.Y / 2
+        
         -- Klik di tengah layar
-        VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, true, game, 0)
-        VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, false, game, 0)
+        VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, true, game, 1)
+        task.wait(0.01)
+        VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, false, game, 1)
+        
+        -- Tunggu sesuai kecepatan yang ditentukan
         task.wait(clickSpeed / 1000) -- Convert ms to seconds
     end
 end
@@ -386,20 +367,19 @@ end)
 minimizeButton.MouseButton1Click:Connect(toggleMinimize)
 restoreButton.MouseButton1Click:Connect(toggleMinimize)
 
--- Make UI draggable (improved version)
+-- Sistem Drag yang Diperbaiki
 local dragging
-local dragInput
 local dragStart
 local startPos
 
-local function update(input)
+local function updateDrag(input)
     local delta = input.Position - dragStart
-    local newPosition = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    local newPos = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     
     if isMinimized then
-        minimizedFrame.Position = newPosition
+        minimizedFrame.Position = newPos
     else
-        mainFrame.Position = newPosition
+        mainFrame.Position = newPos
     end
 end
 
@@ -417,7 +397,7 @@ titleBar.InputBegan:Connect(function(input)
     end
 end)
 
-minimizedFrame.InputBegan:Connect(function(input)
+minimizedTitle.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = true
         dragStart = input.Position
@@ -433,6 +413,6 @@ end)
 
 UserInputService.InputChanged:Connect(function(input)
     if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        update(input)
+        updateDrag(input)
     end
 end)
